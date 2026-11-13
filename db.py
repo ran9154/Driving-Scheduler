@@ -22,6 +22,22 @@ DEFAULT_WORK_HOURS = {
 DEFAULT_AREAS = ["רמלה", "נס ציונה", "באר יעקב"]
 
 _TABLES_WITH_ID = ("students", "instructor_blocks", "scheduled_lessons")
+_pg_pool: Any = None
+
+
+def _get_pg_pool() -> Any:
+    global _pg_pool
+    if _pg_pool is None:
+        from psycopg.rows import dict_row
+        from psycopg_pool import ConnectionPool
+
+        _pg_pool = ConnectionPool(
+            DATABASE_URL,
+            min_size=1,
+            max_size=5,
+            kwargs={"row_factory": dict_row},
+        )
+    return _pg_pool
 
 
 class _PgCursorWrapper:
@@ -43,18 +59,22 @@ class _PgCursorWrapper:
 class _PgConnWrapper:
     """Thin adapter so existing SQLite-style queries work seamlessly on PostgreSQL."""
 
-    def __init__(self, raw_conn: Any) -> None:
-        self._conn = raw_conn
+    def __init__(self, pool_ctx: Any) -> None:
+        self._pool_ctx = pool_ctx
+        self._conn: Any = None
 
     def __enter__(self) -> "_PgConnWrapper":
+        self._conn = self._pool_ctx.__enter__()
         return self
 
     def __exit__(self, exc_type: Any, exc_val: Any, exc_tb: Any) -> None:
-        if exc_type:
-            self._conn.rollback()
-        else:
-            self._conn.commit()
-        self._conn.close()
+        try:
+            if exc_type:
+                self._conn.rollback()
+            else:
+                self._conn.commit()
+        finally:
+            self._pool_ctx.__exit__(exc_type, exc_val, exc_tb)
 
     def execute(self, sql: str, params: tuple[Any, ...] | list[Any] = ()) -> _PgCursorWrapper:
         q = sql.strip()
@@ -86,11 +106,7 @@ class _PgConnWrapper:
 
 def get_conn() -> Any:
     if IS_POSTGRES:
-        import psycopg
-        from psycopg.rows import dict_row
-
-        raw = psycopg.connect(DATABASE_URL, row_factory=dict_row)
-        return _PgConnWrapper(raw)
+        return _PgConnWrapper(_get_pg_pool().connection())
 
     conn = sqlite3.connect(DB_PATH)
     conn.row_factory = sqlite3.Row
