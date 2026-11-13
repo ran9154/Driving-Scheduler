@@ -1,0 +1,537 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <title>שיבוץ שיעורי נהיגה - תלמיד</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif; }
+    .slot-btn { transition: background-color 0.08s ease, color 0.08s ease; user-select: none; -webkit-tap-highlight-color: transparent; touch-action: none; }
+  </style>
+</head>
+<body class="bg-slate-50 text-slate-900 min-h-screen">
+  <div id="app" class="max-w-md mx-auto min-h-screen flex flex-col bg-white shadow-sm">
+    <!-- Header -->
+    <header class="bg-slate-900 text-white px-4 py-3 flex items-center justify-between sticky top-0 z-20">
+      <div>
+        <h1 class="text-lg font-bold">הגשת אילוצים שבועית</h1>
+        <p id="header-sub" class="text-xs text-slate-300">בית ספר לנהיגה</p>
+      </div>
+      <div class="flex items-center gap-2">
+        <button id="logout-btn" class="hidden text-xs bg-slate-700 hover:bg-slate-600 px-2.5 py-1.5 rounded-lg">התנתק</button>
+      </div>
+    </header>
+
+    <!-- Login / Register View -->
+    <main id="login-view" class="flex-1 p-5 flex flex-col justify-center">
+      <div class="bg-slate-50 border border-slate-200 rounded-2xl p-6 shadow-sm">
+        <div class="flex gap-1 bg-slate-200/70 p-1 rounded-xl mb-5 text-xs font-bold">
+          <button id="tab-existing" type="button" class="flex-1 py-2 rounded-lg bg-white text-slate-900 shadow-xs">תלמיד קיים</button>
+          <button id="tab-new" type="button" class="flex-1 py-2 rounded-lg text-slate-600">תלמיד חדש (הרשמה)</button>
+        </div>
+
+        <form id="login-form" class="space-y-4">
+          <p class="text-xs text-slate-500">הזן טלפון וקוד אישי פעם אחת — החיבור יישמר במכשיר שלך.</p>
+          <div>
+            <label class="block text-sm font-medium mb-1">מספר טלפון</label>
+            <input id="login-phone" type="tel" required placeholder="0501234567"
+              class="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-blue-500 text-left" dir="ltr" />
+          </div>
+          <div>
+            <label class="block text-sm font-medium mb-1">קוד אישי (4 ספרות)</label>
+            <input id="login-pin" type="password" inputmode="numeric" maxlength="6" required placeholder="••••"
+              class="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-blue-500 text-left" dir="ltr" />
+          </div>
+          <p id="login-error" class="text-sm text-red-600 hidden"></p>
+          <button type="submit"
+            class="w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold py-3 rounded-xl shadow-sm">
+            כניסה למערכת
+          </button>
+        </form>
+
+        <form id="register-form" class="hidden space-y-3.5">
+          <p class="text-xs text-slate-500">הרשמה חד-פעמית — המערכת תגריל עבורך קוד אישי ותחבר אותך מיד.</p>
+          <div>
+            <label class="block text-sm font-medium mb-1">שם מלא</label>
+            <input id="reg-name" type="text" required placeholder="למשל: דניאל כהן"
+              class="w-full px-3.5 py-2 rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-blue-500" />
+          </div>
+          <div>
+            <label class="block text-sm font-medium mb-1">מספר טלפון</label>
+            <input id="reg-phone" type="tel" required placeholder="0501234567"
+              class="w-full px-3.5 py-2 rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-blue-500 text-left" dir="ltr" />
+          </div>
+          <div>
+            <label class="block text-sm font-medium mb-1">עיר מגורים / איסוף</label>
+            <select id="reg-area" class="w-full px-3 py-2 rounded-xl border border-slate-300 bg-white text-sm"></select>
+            <input id="reg-area-custom" type="text" placeholder="הקלד עיר / שכונה..." class="hidden mt-2 w-full px-3 py-2 rounded-xl border border-slate-300 bg-white text-sm" />
+          </div>
+          <div>
+            <label class="block text-sm font-medium mb-1">רחוב ומספר בית (לאיסוף)</label>
+            <input id="reg-address" type="text" placeholder="למשל: הרצל 15"
+              class="w-full px-3.5 py-2 rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-blue-500" />
+          </div>
+          <p id="reg-error" class="text-sm text-red-600 hidden"></p>
+          <button type="submit"
+            class="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-semibold py-3 rounded-xl shadow-sm">
+            הרשמה וכניסה
+          </button>
+        </form>
+      </div>
+      <div class="text-center mt-6">
+        <a href="/instructor" class="text-xs text-slate-400 hover:text-slate-600 underline">כניסת מורה נהיגה</a>
+      </div>
+    </main>
+
+    <!-- Student Constraints View -->
+    <main id="week-view" class="hidden flex-1 flex flex-col pb-24">
+      <div id="status-banner" class="mx-4 mt-4 p-3.5 rounded-xl border text-sm"></div>
+
+      <!-- Preferences -->
+      <section class="mx-4 mt-3 p-3.5 bg-slate-50 border border-slate-200 rounded-2xl space-y-2.5">
+        <div class="flex items-center justify-between gap-2">
+          <label class="text-sm font-semibold">אזור מגורים / איסוף:</label>
+          <select id="student-area-sel" class="border border-slate-300 rounded-lg px-2.5 py-1.5 bg-white text-sm font-semibold max-w-[180px]"></select>
+        </div>
+        <input id="student-area-custom" type="text" placeholder="הקלד עיר / שכונה..." class="hidden w-full border border-slate-300 rounded-lg px-3 py-1.5 bg-white text-sm" />
+        <div class="flex items-center justify-between gap-2">
+          <label class="text-xs text-slate-600">רחוב ומספר (אופציונלי):</label>
+          <input id="student-address" type="text" placeholder="למשל: הרצל 15" class="border border-slate-300 rounded-lg px-2.5 py-1.5 bg-white text-sm w-[180px]" />
+        </div>
+        <div class="flex items-center justify-between">
+          <label class="text-sm font-semibold">כמה שיעורים תרצה השבוע?</label>
+          <select id="req-lessons" class="border border-slate-300 rounded-lg px-3 py-1.5 bg-white text-sm font-semibold">
+            <option value="0">0 (לא לומד השבוע)</option>
+            <option value="1" selected>1 שיעור</option>
+            <option value="2">2 שיעורים</option>
+            <option value="3">3 שיעורים</option>
+          </select>
+        </div>
+        <label class="flex items-center gap-2.5 text-sm cursor-pointer">
+          <input id="pref-double" type="checkbox" class="w-4 h-4 rounded text-blue-600" />
+          <span>אשמח לשיעור כפול (אם מתאפשר)</span>
+        </label>
+      </section>
+
+      <!-- Quick Presets (10-second setup!) -->
+      <section id="presets-box" class="mx-4 mt-3 p-3.5 bg-indigo-50/70 border border-indigo-200 rounded-2xl space-y-2">
+        <div class="flex items-center justify-between">
+          <span class="text-xs font-bold text-indigo-950">סימון מהיר לכל השבוע (א'–ה'):</span>
+          <button id="copy-last-btn" class="hidden text-xs bg-indigo-600 hover:bg-indigo-700 text-white font-semibold px-2.5 py-1 rounded-lg">
+            📋 העתק משבוע שעבר
+          </button>
+        </div>
+        <div class="flex flex-wrap gap-1.5">
+          <button type="button" data-preset="morning13" class="preset-btn text-xs bg-white hover:bg-indigo-100 border border-indigo-200 text-indigo-900 px-2.5 py-1.5 rounded-lg font-medium">
+            🏫 לומד עד 13:00
+          </button>
+          <button type="button" data-preset="morning15" class="preset-btn text-xs bg-white hover:bg-indigo-100 border border-indigo-200 text-indigo-900 px-2.5 py-1.5 rounded-lg font-medium">
+            🎒 לומד עד 15:00
+          </button>
+          <button type="button" data-preset="afternoon" class="preset-btn text-xs bg-white hover:bg-indigo-100 border border-indigo-200 text-indigo-900 px-2.5 py-1.5 rounded-lg font-medium">
+            💼 עובד אחה"צ (מ-16:00)
+          </button>
+          <button type="button" data-preset="blockAll" class="preset-btn text-xs bg-white hover:bg-red-50 border border-red-200 text-red-800 px-2.5 py-1.5 rounded-lg font-medium">
+            🚫 חסום הכל (אסמן רק מתי פנוי)
+          </button>
+          <button type="button" data-preset="clearAll" class="preset-btn text-xs bg-white hover:bg-emerald-50 border border-emerald-200 text-emerald-800 px-2.5 py-1.5 rounded-lg font-medium">
+            ✨ נקה הכל
+          </button>
+        </div>
+      </section>
+
+      <!-- Instructions -->
+      <div class="mx-4 mt-3 flex items-center justify-between text-xs text-slate-600">
+        <span>לחץ או <strong class="text-slate-800">גרור אצבע</strong> על השעות:</span>
+        <div class="flex items-center gap-2">
+          <span class="inline-flex items-center gap-1"><span class="w-3 h-3 rounded bg-emerald-100 border border-emerald-400 inline-block"></span> פנוי</span>
+          <span class="inline-flex items-center gap-1"><span class="w-3 h-3 rounded bg-red-500 inline-block"></span> לא יכול</span>
+        </div>
+      </div>
+
+      <!-- Days Grid -->
+      <div id="days-container" class="mx-4 mt-2.5 space-y-3"></div>
+
+      <!-- Sticky Save Bar -->
+      <div class="fixed bottom-0 left-0 right-0 max-w-md mx-auto bg-white border-t border-slate-200 p-3 flex items-center gap-3 z-20">
+        <button id="save-btn"
+          class="flex-1 bg-blue-600 hover:bg-blue-700 disabled:bg-slate-300 text-white font-bold py-3 rounded-xl shadow-sm">
+          שמור אילוצים לשבוע הבא
+        </button>
+      </div>
+    </main>
+  </div>
+
+  <!-- Toast -->
+  <div id="toast" class="fixed top-16 left-1/2 -translate-x-1/2 bg-slate-900 text-white text-sm px-4 py-2.5 rounded-xl shadow-lg hidden z-50"></div>
+
+  <script>
+    const DAY_NAMES = ["יום א'", "יום ב'", "יום ג'", "יום ד'", "יום ה'", "יום ו'"];
+    let token = localStorage.getItem("student_token");
+    let weekData = null;
+    let blockedSet = new Set();
+
+    // Drag-to-paint state
+    let isPainting = false;
+    let paintModeBlock = true;
+
+    function showToast(msg, isError = false) {
+      const el = document.getElementById("toast");
+      el.textContent = msg;
+      el.className = `fixed top-16 left-1/2 -translate-x-1/2 text-white text-sm px-4 py-2.5 rounded-xl shadow-lg z-50 ${isError ? "bg-red-600" : "bg-emerald-600"}`;
+      el.classList.remove("hidden");
+      setTimeout(() => el.classList.add("hidden"), 2800);
+    }
+
+    function formatDateOffset(isoStart, offsetDays) {
+      const d = new Date(isoStart + "T00:00:00");
+      d.setDate(d.getDate() + offsetDays);
+      return `${d.getDate()}/${d.getMonth() + 1}`;
+    }
+
+    function toMin(t) {
+      const [h, m] = t.split(":").map(Number);
+      return h * 60 + m;
+    }
+
+    function updateSlotVisual(btn, isBlocked) {
+      btn.className = `slot-btn py-2 rounded-xl text-xs font-semibold border ${
+        isBlocked
+          ? "bg-red-500 border-red-600 text-white"
+          : "bg-emerald-50 border-emerald-200 text-emerald-900 hover:bg-emerald-100"
+      } ${weekData.is_locked ? "opacity-75 cursor-not-allowed" : ""}`;
+    }
+
+    async function loadWeek() {
+      const res = await fetch("/api/student/week", { headers: { "X-Student-Token": token } });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        localStorage.removeItem("student_token");
+        token = null;
+        document.getElementById("login-view").classList.remove("hidden");
+        document.getElementById("week-view").classList.add("hidden");
+        document.getElementById("logout-btn").classList.add("hidden");
+        if (err.detail) {
+          const e = document.getElementById("login-error");
+          e.textContent = err.detail;
+          e.classList.remove("hidden");
+        }
+        return;
+      }
+      weekData = await res.json();
+      document.getElementById("login-view").classList.add("hidden");
+      document.getElementById("week-view").classList.remove("hidden");
+      document.getElementById("logout-btn").classList.remove("hidden");
+      document.getElementById("header-sub").textContent = `שלום, ${weekData.student.name} (${weekData.student.area})`;
+
+      const banner = document.getElementById("status-banner");
+      const endStr = formatDateOffset(weekData.week_start, 5);
+      const startStr = formatDateOffset(weekData.week_start, 0);
+      if (weekData.is_locked) {
+        banner.className = "mx-4 mt-4 p-3.5 rounded-xl border text-sm bg-amber-50 border-amber-300 text-amber-900";
+        banner.innerHTML = `<strong>הגשה נעולה</strong> — שבוע ${startStr} עד ${endStr}. לא ניתן לבצע שינויים לאחר מועד הנעילה.`;
+      } else {
+        banner.className = "mx-4 mt-4 p-3.5 rounded-xl border text-sm bg-blue-50 border-blue-200 text-blue-900";
+        const subTxt = weekData.submission ? "הגשת אילוצים (ניתן לעדכן עד הנעילה)" : "טרם הגשת אילוצים לשבוע זה";
+        banner.innerHTML = `<strong>שבוע ${startStr}–${endStr}</strong> · נעילה ביום ${DAY_NAMES[weekData.lock_day]} ב-${weekData.lock_time}<div class="text-xs mt-0.5 opacity-80">${subTxt}</div>`;
+      }
+
+      if (weekData.submission) {
+        document.getElementById("req-lessons").value = String(weekData.submission.requested_lessons);
+        document.getElementById("pref-double").checked = weekData.submission.prefer_double;
+        blockedSet = new Set(weekData.submission.blocked_slots);
+      } else {
+        document.getElementById("req-lessons").value = "1";
+        document.getElementById("pref-double").checked = false;
+        blockedSet = new Set();
+      }
+
+      const disabled = weekData.is_locked;
+      document.getElementById("req-lessons").disabled = disabled;
+      document.getElementById("pref-double").disabled = disabled;
+      document.getElementById("save-btn").disabled = disabled;
+      document.getElementById("presets-box").classList.toggle("hidden", disabled);
+
+      // Populate residential / pickup area selector
+      const areaSel = document.getElementById("student-area-sel");
+      const customInp = document.getElementById("student-area-custom");
+      const areas = weekData.areas || [];
+      const curArea = weekData.student.area || "";
+      areaSel.innerHTML = areas.map(a => `<option value="${a}">${a}</option>`).join("") +
+        `<option value="__other__">אחר:</option>`;
+      if (areas.includes(curArea)) {
+        areaSel.value = curArea;
+        customInp.classList.add("hidden");
+      } else if (curArea) {
+        areaSel.value = "__other__";
+        customInp.value = curArea;
+        customInp.classList.remove("hidden");
+      }
+      areaSel.disabled = disabled;
+      customInp.disabled = disabled;
+      const addrInp = document.getElementById("student-address");
+      addrInp.value = weekData.student.address || "";
+      addrInp.disabled = disabled;
+      areaSel.onchange = () => {
+        customInp.classList.toggle("hidden", areaSel.value !== "__other__");
+      };
+
+      const copyBtn = document.getElementById("copy-last-btn");
+      copyBtn.classList.toggle("hidden", !weekData.last_submission);
+
+      renderDays();
+    }
+
+    function toggleSlotList(slotList) {
+      const allBlocked = slotList.every(s => blockedSet.has(s.key));
+      slotList.forEach(s => allBlocked ? blockedSet.delete(s.key) : blockedSet.add(s.key));
+      renderDays();
+    }
+
+    function renderDays() {
+      const container = document.getElementById("days-container");
+      container.innerHTML = "";
+      for (let d = 0; d < 6; d++) {
+        const daySlots = weekData.slots.filter(s => s.day === d);
+        if (!daySlots.length) continue;
+
+        const morning = daySlots.filter(s => toMin(s.start_time) < 12 * 60);
+        const noon = daySlots.filter(s => toMin(s.start_time) >= 12 * 60 && toMin(s.start_time) < 16 * 60);
+        const evening = daySlots.filter(s => toMin(s.start_time) >= 16 * 60);
+        const allBlocked = daySlots.every(s => blockedSet.has(s.key));
+
+        const card = document.createElement("div");
+        card.className = "border border-slate-200 rounded-2xl p-3.5 bg-white shadow-xs";
+
+        const header = document.createElement("div");
+        header.className = "flex flex-wrap items-center justify-between gap-1.5 mb-2.5";
+
+        let pillsHtml = "";
+        if (!weekData.is_locked) {
+          const pillCls = (arr) => arr.length && arr.every(s => blockedSet.has(s.key))
+            ? "bg-red-100 border-red-300 text-red-800"
+            : "bg-slate-50 border-slate-200 text-slate-600 hover:bg-slate-100";
+          if (morning.length) pillsHtml += `<button type="button" data-day="${d}" data-part="morning" class="part-btn text-[11px] px-2 py-0.5 rounded-lg border ${pillCls(morning)}">בוקר</button>`;
+          if (noon.length) pillsHtml += `<button type="button" data-day="${d}" data-part="noon" class="part-btn text-[11px] px-2 py-0.5 rounded-lg border ${pillCls(noon)}">צהריים</button>`;
+          if (evening.length) pillsHtml += `<button type="button" data-day="${d}" data-part="evening" class="part-btn text-[11px] px-2 py-0.5 rounded-lg border ${pillCls(evening)}">אחה"צ</button>`;
+          pillsHtml += `<button type="button" data-day="${d}" data-part="all" class="part-btn text-[11px] px-2 py-0.5 rounded-lg border ${allBlocked ? "bg-red-500 border-red-600 text-white" : "bg-slate-50 border-slate-200 text-slate-700"}">${allBlocked ? "שחרר יום" : "כל היום"}</button>`;
+        }
+
+        header.innerHTML = `
+          <div class="font-bold text-sm">${DAY_NAMES[d]} <span class="text-slate-400 font-normal">(${formatDateOffset(weekData.week_start, d)})</span></div>
+          <div class="flex flex-wrap gap-1">${pillsHtml}</div>
+        `;
+        card.appendChild(header);
+
+        const grid = document.createElement("div");
+        grid.className = "grid grid-cols-4 gap-2";
+        for (const sl of daySlots) {
+          const isBlocked = blockedSet.has(sl.key);
+          const btn = document.createElement("button");
+          btn.type = "button";
+          btn.disabled = weekData.is_locked;
+          btn.dataset.key = sl.key;
+          btn.textContent = sl.start_time;
+          updateSlotVisual(btn, isBlocked);
+
+          btn.addEventListener("pointerdown", (e) => {
+            if (weekData.is_locked) return;
+            e.preventDefault();
+            isPainting = true;
+            paintModeBlock = !blockedSet.has(sl.key);
+            if (paintModeBlock) blockedSet.add(sl.key);
+            else blockedSet.delete(sl.key);
+            updateSlotVisual(btn, paintModeBlock);
+          });
+
+          grid.appendChild(btn);
+        }
+        card.appendChild(grid);
+        container.appendChild(card);
+      }
+
+      document.querySelectorAll(".part-btn").forEach(btn => {
+        btn.onclick = () => {
+          const d = Number(btn.dataset.day);
+          const part = btn.dataset.part;
+          const daySlots = weekData.slots.filter(s => s.day === d);
+          if (part === "morning") toggleSlotList(daySlots.filter(s => toMin(s.start_time) < 12 * 60));
+          else if (part === "noon") toggleSlotList(daySlots.filter(s => toMin(s.start_time) >= 12 * 60 && toMin(s.start_time) < 16 * 60));
+          else if (part === "evening") toggleSlotList(daySlots.filter(s => toMin(s.start_time) >= 16 * 60));
+          else toggleSlotList(daySlots);
+        };
+      });
+    }
+
+    // Global pointermove/up for smooth finger/mouse drag painting
+    document.addEventListener("pointermove", (e) => {
+      if (!isPainting || !weekData || weekData.is_locked) return;
+      const el = document.elementFromPoint(e.clientX, e.clientY);
+      if (el && el.classList.contains("slot-btn") && el.dataset.key) {
+        const k = el.dataset.key;
+        if (paintModeBlock && !blockedSet.has(k)) {
+          blockedSet.add(k);
+          updateSlotVisual(el, true);
+        } else if (!paintModeBlock && blockedSet.has(k)) {
+          blockedSet.delete(k);
+          updateSlotVisual(el, false);
+        }
+      }
+    });
+    document.addEventListener("pointerup", () => {
+      if (isPainting) {
+        isPainting = false;
+        renderDays();
+      }
+    });
+    document.addEventListener("pointercancel", () => { isPainting = false; });
+
+    // Weekly presets
+    document.querySelectorAll(".preset-btn").forEach(btn => {
+      btn.onclick = () => {
+        const p = btn.dataset.preset;
+        if (p === "clearAll") {
+          blockedSet.clear();
+        } else if (p === "blockAll") {
+          weekData.slots.forEach(s => blockedSet.add(s.key));
+        } else if (p === "morning13") {
+          weekData.slots.filter(s => s.day < 5 && toMin(s.start_time) < 13 * 60).forEach(s => blockedSet.add(s.key));
+        } else if (p === "morning15") {
+          weekData.slots.filter(s => s.day < 5 && toMin(s.start_time) < 15 * 60).forEach(s => blockedSet.add(s.key));
+        } else if (p === "afternoon") {
+          weekData.slots.filter(s => s.day < 5 && toMin(s.start_time) >= 16 * 60).forEach(s => blockedSet.add(s.key));
+        }
+        renderDays();
+      };
+    });
+
+    document.getElementById("copy-last-btn").onclick = () => {
+      if (!weekData.last_submission) return;
+      document.getElementById("req-lessons").value = String(weekData.last_submission.requested_lessons);
+      document.getElementById("pref-double").checked = weekData.last_submission.prefer_double;
+      blockedSet = new Set(weekData.last_submission.blocked_slots);
+      renderDays();
+      showToast("האילוצים משבוע שעבר הועתקו!");
+    };
+
+    // Login / Register tabs & public areas load
+    async function loadPublicAreas() {
+      try {
+        const res = await fetch("/api/public/areas");
+        const data = await res.json();
+        const sel = document.getElementById("reg-area");
+        sel.innerHTML = (data.areas || []).map(a => `<option value="${a}">${a}</option>`).join("") +
+          `<option value="__other__">אחר:</option>`;
+        sel.onchange = () => {
+          document.getElementById("reg-area-custom").classList.toggle("hidden", sel.value !== "__other__");
+        };
+      } catch (_) {}
+    }
+    loadPublicAreas();
+
+    document.getElementById("tab-existing").onclick = () => {
+      document.getElementById("tab-existing").className = "flex-1 py-2 rounded-lg bg-white text-slate-900 shadow-xs";
+      document.getElementById("tab-new").className = "flex-1 py-2 rounded-lg text-slate-600";
+      document.getElementById("login-form").classList.remove("hidden");
+      document.getElementById("register-form").classList.add("hidden");
+    };
+    document.getElementById("tab-new").onclick = () => {
+      document.getElementById("tab-new").className = "flex-1 py-2 rounded-lg bg-white text-slate-900 shadow-xs";
+      document.getElementById("tab-existing").className = "flex-1 py-2 rounded-lg text-slate-600";
+      document.getElementById("register-form").classList.remove("hidden");
+      document.getElementById("login-form").classList.add("hidden");
+    };
+
+    document.getElementById("register-form").onsubmit = async (e) => {
+      e.preventDefault();
+      const errEl = document.getElementById("reg-error");
+      errEl.classList.add("hidden");
+      const areaSel = document.getElementById("reg-area").value;
+      const area = areaSel === "__other__"
+        ? document.getElementById("reg-area-custom").value.trim()
+        : areaSel;
+      const res = await fetch("/api/student/register", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          name: document.getElementById("reg-name").value,
+          phone: document.getElementById("reg-phone").value,
+          area: area || "רמלה",
+          address: document.getElementById("reg-address").value,
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        errEl.textContent = data.detail || "שגיאה בהרשמה";
+        errEl.classList.remove("hidden");
+        return;
+      }
+      token = data.token;
+      localStorage.setItem("student_token", token);
+      alert(`נרשמת בהצלחה!\nהקוד האישי שלך הוא: ${data.pin}\n(שמור אותו למקרה שתחליף מכשיר — הוא מופיע גם אצל מורה הנהיגה)`);
+      loadWeek();
+    };
+
+    document.getElementById("login-form").onsubmit = async (e) => {
+      e.preventDefault();
+      const errEl = document.getElementById("login-error");
+      errEl.classList.add("hidden");
+      const res = await fetch("/api/student/login", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          phone: document.getElementById("login-phone").value,
+          pin: document.getElementById("login-pin").value,
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        errEl.textContent = data.detail || "שגיאה בהתחברות";
+        errEl.classList.remove("hidden");
+        return;
+      }
+      token = data.token;
+      localStorage.setItem("student_token", token);
+      loadWeek();
+    };
+
+    document.getElementById("save-btn").onclick = async () => {
+      const areaSel = document.getElementById("student-area-sel").value;
+      const chosenArea = areaSel === "__other__"
+        ? document.getElementById("student-area-custom").value.trim()
+        : areaSel;
+      const res = await fetch("/api/student/constraints", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "X-Student-Token": token,
+        },
+        body: JSON.stringify({
+          week_start: weekData.week_start,
+          requested_lessons: Number(document.getElementById("req-lessons").value),
+          prefer_double: document.getElementById("pref-double").checked,
+          blocked_slots: Array.from(blockedSet),
+          area: chosenArea || null,
+          address: document.getElementById("student-address").value.trim(),
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        showToast(data.detail || "שגיאה בשמירה", true);
+        return;
+      }
+      showToast("האילוצים נשמרו בהצלחה!");
+      loadWeek();
+    };
+
+    document.getElementById("logout-btn").onclick = () => {
+      localStorage.removeItem("student_token");
+      token = null;
+      location.reload();
+    };
+
+    if (token) loadWeek();
+  </script>
+</body>
+</html>

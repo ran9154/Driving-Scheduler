@@ -1,0 +1,892 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>לוח בקרה למורה נהיגה</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif; }
+  </style>
+</head>
+<body class="bg-slate-100 text-slate-900 min-h-screen">
+  <!-- Login Screen -->
+  <div id="login-screen" class="min-h-screen flex items-center justify-center p-4">
+    <div class="bg-white border border-slate-200 rounded-2xl p-6 w-full max-w-sm shadow-sm">
+      <h1 class="text-xl font-bold mb-1">כניסת מורה נהיגה</h1>
+      <p class="text-sm text-slate-500 mb-4">קוד ברירת מחדל להדגמה: <code class="bg-slate-100 px-1.5 py-0.5 rounded">1234</code></p>
+      <form id="inst-login-form" class="space-y-4">
+        <input id="inst-pin" type="password" inputmode="numeric" placeholder="קוד מורה" required
+          class="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 text-left" dir="ltr" />
+        <p id="inst-login-err" class="text-sm text-red-600 hidden"></p>
+        <button type="submit" class="w-full bg-slate-900 hover:bg-slate-800 text-white font-semibold py-2.5 rounded-xl">כניסה</button>
+      </form>
+      <div class="text-center mt-4">
+        <a href="/" class="text-xs text-slate-400 hover:text-slate-600 underline">מעבר לממשק תלמיד</a>
+      </div>
+    </div>
+  </div>
+
+  <!-- Main Dashboard -->
+  <div id="dashboard" class="hidden max-w-7xl mx-auto pb-12">
+    <header class="bg-slate-900 text-white px-4 py-3 flex flex-wrap items-center justify-between gap-3 sticky top-0 z-30 shadow">
+      <div class="flex items-center gap-4">
+        <div>
+          <h1 class="text-lg font-bold">ניהול ושיבוץ לוז שבועי</h1>
+          <p id="week-title" class="text-xs text-slate-300"></p>
+        </div>
+        <nav class="flex gap-1 bg-slate-800 p-1 rounded-xl text-xs font-medium">
+          <button data-tab="schedule" class="tab-btn px-3 py-1.5 rounded-lg bg-blue-600 text-white">לוז ושיבוץ</button>
+          <button data-tab="students" class="tab-btn px-3 py-1.5 rounded-lg text-slate-300 hover:text-white">תלמידים</button>
+          <button data-tab="settings" class="tab-btn px-3 py-1.5 rounded-lg text-slate-300 hover:text-white">הגדרות</button>
+        </nav>
+      </div>
+      <div class="flex items-center gap-2">
+        <a href="/" class="text-xs bg-slate-700 hover:bg-slate-600 px-3 py-1.5 rounded-lg">מסך תלמיד</a>
+        <button id="inst-logout" class="text-xs bg-slate-700 hover:bg-slate-600 px-3 py-1.5 rounded-lg">יציאה</button>
+      </div>
+    </header>
+
+    <!-- TAB 1: Schedule -->
+    <section id="tab-schedule" class="p-4 space-y-4">
+      <!-- Action Bar -->
+      <div class="bg-white border border-slate-200 rounded-2xl p-4 flex flex-wrap items-center justify-between gap-3 shadow-xs">
+        <div class="flex flex-wrap items-center gap-3">
+          <span id="sub-badge" class="px-3 py-1 rounded-full text-xs font-bold bg-blue-50 text-blue-800 border border-blue-200"></span>
+          <span id="lock-badge" class="px-3 py-1 rounded-full text-xs font-bold"></span>
+          <select id="lock-override-select" class="text-xs border border-slate-300 rounded-lg px-2.5 py-1.5 bg-white">
+            <option value="auto">מצב נעילה: אוטומטי</option>
+            <option value="0">פתח הגשה ידנית</option>
+            <option value="1">נעל הגשה ידנית</option>
+          </select>
+        </div>
+        <div class="flex flex-wrap items-center gap-2">
+          <button id="demo-seed-btn" class="text-xs bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold px-3 py-2 rounded-xl border border-slate-300">
+            טען 50 תלמידי הדגמה
+          </button>
+          <button id="auto-schedule-btn" class="text-sm bg-blue-600 hover:bg-blue-700 text-white font-bold px-4 py-2 rounded-xl shadow-xs">
+            ⚡ שבץ לוז חכם
+          </button>
+          <button id="export-excel-btn" class="text-sm bg-emerald-600 hover:bg-emerald-700 text-white font-bold px-4 py-2 rounded-xl shadow-xs">
+            📊 ייצוא לאקסל
+          </button>
+        </div>
+      </div>
+
+      <!-- Stats & Unscheduled Alert -->
+      <div id="schedule-stats" class="hidden bg-indigo-50 border border-indigo-200 rounded-2xl p-3.5 text-sm text-indigo-950 flex flex-wrap gap-4 items-center justify-between"></div>
+
+      <!-- Instructor Blocks / Tests -->
+      <div class="bg-white border border-slate-200 rounded-2xl p-4 shadow-xs">
+        <div class="flex flex-wrap items-center justify-between gap-2 mb-3">
+          <h2 class="font-bold text-sm">חסימות מורה וטסטים לשבוע זה</h2>
+          <form id="add-block-form" class="flex flex-wrap items-center gap-2 text-xs">
+            <select id="blk-day" class="border rounded-lg px-2 py-1.5 bg-white">
+              <option value="0">יום א'</option><option value="1">יום ב'</option><option value="2">יום ג'</option>
+              <option value="3">יום ד'</option><option value="4">יום ה'</option><option value="5">יום ו'</option>
+            </select>
+            <input id="blk-start" type="time" value="07:15" required class="border rounded-lg px-2 py-1.5" />
+            <span>עד</span>
+            <input id="blk-end" type="time" value="08:30" required class="border rounded-lg px-2 py-1.5" />
+            <select id="blk-type" class="border rounded-lg px-2 py-1.5 bg-white">
+              <option value="test">טסט</option>
+              <option value="personal">סידור / חסימה</option>
+            </select>
+            <input id="blk-title" type="text" placeholder="תיאור (למשל טסט בוקר)" class="border rounded-lg px-2.5 py-1.5 w-44" />
+            <button type="submit" class="bg-slate-800 hover:bg-slate-700 text-white px-3 py-1.5 rounded-lg font-semibold">+ הוסף חסימה</button>
+          </form>
+        </div>
+        <div id="blocks-list" class="flex flex-wrap gap-2"></div>
+      </div>
+
+      <!-- Weekly Grid -->
+      <div class="bg-white border border-slate-200 rounded-2xl p-4 shadow-xs overflow-x-auto">
+        <div class="flex flex-wrap items-center justify-between gap-2 mb-3">
+          <h2 class="font-bold text-sm">מערכת שעות שבועית (גרור תלמיד להזזה או החלפה · לחץ על משבצת ריקה לשיבוץ ידני)</h2>
+          <div id="area-legend" class="flex flex-wrap gap-1.5 text-xs"></div>
+        </div>
+        <table class="w-full border-collapse text-xs min-w-[780px]">
+          <thead>
+            <tr class="bg-slate-100 text-slate-700">
+              <th class="border border-slate-200 p-2 w-24">שעה</th>
+              <th class="border border-slate-200 p-2">יום א'</th>
+              <th class="border border-slate-200 p-2">יום ב'</th>
+              <th class="border border-slate-200 p-2">יום ג'</th>
+              <th class="border border-slate-200 p-2">יום ד'</th>
+              <th class="border border-slate-200 p-2">יום ה'</th>
+              <th class="border border-slate-200 p-2">יום ו'</th>
+            </tr>
+          </thead>
+          <tbody id="schedule-tbody"></tbody>
+        </table>
+      </div>
+
+      <!-- Bottom Panels: Unscheduled & Missing -->
+      <div class="grid md:grid-cols-2 gap-4">
+        <div class="bg-white border border-slate-200 rounded-2xl p-4 shadow-xs">
+          <h3 class="font-bold text-sm mb-2">תלמידים שלא שובצו במלואם</h3>
+          <div id="unscheduled-list" class="text-xs text-slate-600 space-y-1.5">אין חריגים כרגע (או שטרם הרצת שיבוץ).</div>
+        </div>
+        <div class="bg-white border border-slate-200 rounded-2xl p-4 shadow-xs">
+          <h3 class="font-bold text-sm mb-2">תלמידים פעילים שטרם הגישו אילוצים</h3>
+          <div id="missing-list" class="text-xs text-slate-600 space-y-1.5"></div>
+        </div>
+      </div>
+
+      <!-- Weekly Student Hours Summary Table -->
+      <div class="bg-white border border-slate-200 rounded-2xl p-4 shadow-xs">
+        <div class="flex flex-wrap items-center justify-between gap-2 mb-3">
+          <div class="flex items-center gap-2">
+            <h3 class="font-bold text-sm">סיכום שיעורים ושעות לתלמיד השבוע</h3>
+            <span id="summary-total-badge" class="text-xs px-2.5 py-0.5 rounded-full bg-slate-100 text-slate-700 font-semibold"></span>
+          </div>
+          <input id="summary-search" type="text" placeholder="סנן לפי שם תלמיד או אזור..." class="border rounded-xl px-3 py-1.5 text-xs w-56" />
+        </div>
+        <div class="overflow-x-auto max-h-96 overflow-y-auto">
+          <table class="w-full text-xs border-collapse">
+            <thead class="sticky top-0 bg-slate-100 text-slate-700">
+              <tr class="text-right">
+                <th class="p-2 border-b">שם תלמיד</th>
+                <th class="p-2 border-b">אזור</th>
+                <th class="p-2 border-b text-center">ביקש</th>
+                <th class="p-2 border-b text-center">שובץ (שיעורים)</th>
+                <th class="p-2 border-b text-center">סה״כ זמן</th>
+                <th class="p-2 border-b">מועדים משובצים</th>
+              </tr>
+            </thead>
+            <tbody id="summary-tbody"></tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <!-- TAB 2: Students -->
+    <section id="tab-students" class="hidden p-4 space-y-4">
+      <div class="bg-white border border-slate-200 rounded-2xl p-4 shadow-xs">
+        <h2 class="font-bold text-sm mb-3">הוספת תלמיד חדש</h2>
+        <form id="add-student-form" class="flex flex-wrap gap-2 text-sm">
+          <input id="st-name" type="text" required placeholder="שם מלא" class="border rounded-xl px-3 py-2 flex-1 min-w-[140px]" />
+          <input id="st-phone" type="tel" required placeholder="טלפון (050...)" class="border rounded-xl px-3 py-2 w-36" dir="ltr" />
+          <input id="st-pin" type="text" placeholder="קוד (אוטומטי)" class="border rounded-xl px-3 py-2 w-28 text-center" dir="ltr" />
+          <select id="st-area" class="border rounded-xl px-3 py-2 bg-white"></select>
+          <input id="st-address" type="text" placeholder="רחוב ומספר (אופציונלי)" class="border rounded-xl px-3 py-2 w-44" />
+          <button type="submit" class="bg-blue-600 hover:bg-blue-700 text-white font-semibold px-4 py-2 rounded-xl">+ הוסף תלמיד</button>
+        </form>
+      </div>
+
+      <div class="bg-white border border-slate-200 rounded-2xl p-4 shadow-xs">
+        <div class="flex flex-wrap items-center justify-between gap-2 mb-3">
+          <h2 class="font-bold text-sm">רשימת תלמידים</h2>
+          <input id="student-search" type="text" placeholder="חיפוש לפי שם או אזור..." class="border rounded-xl px-3 py-1.5 text-xs w-56" />
+        </div>
+        <div class="overflow-x-auto">
+          <table class="w-full text-xs border-collapse">
+            <thead>
+              <tr class="bg-slate-100 text-slate-700 text-right">
+                <th class="p-2.5 border-b">שם</th>
+                <th class="p-2.5 border-b">טלפון</th>
+                <th class="p-2.5 border-b">קוד</th>
+                <th class="p-2.5 border-b">אזור / עיר</th>
+                <th class="p-2.5 border-b">כתובת מלאה</th>
+                <th class="p-2.5 border-b">סטטוס</th>
+                <th class="p-2.5 border-b text-center">מחיקה</th>
+              </tr>
+            </thead>
+            <tbody id="students-tbody"></tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <!-- TAB 3: Settings -->
+    <section id="tab-settings" class="hidden p-4">
+      <div class="bg-white border border-slate-200 rounded-2xl p-5 max-w-xl shadow-xs space-y-4">
+        <h2 class="font-bold text-base">הגדרות עבודה ושיבוץ</h2>
+        <div class="grid grid-cols-2 gap-3 text-sm">
+          <div>
+            <label class="block text-xs text-slate-500 mb-1">אורך שיעור (דקות)</label>
+            <input id="set-duration" type="number" class="w-full border rounded-xl px-3 py-2" />
+          </div>
+          <div>
+            <label class="block text-xs text-slate-500 mb-1">שעת נעילה ביום חמישי</label>
+            <input id="set-lock-time" type="time" class="w-full border rounded-xl px-3 py-2" />
+          </div>
+          <div>
+            <label class="block text-xs text-slate-500 mb-1">מצב הפסקת צהריים (א'-ה')</label>
+            <select id="set-lunch-mode" class="w-full border rounded-xl px-3 py-2 bg-white">
+              <option value="flexible">חלון גמיש (שעה רצופה)</option>
+              <option value="fixed">שעה קבועה</option>
+            </select>
+          </div>
+          <div>
+            <label class="block text-xs text-slate-500 mb-1">חלון צהריים / התחלה קבועה</label>
+            <div class="flex gap-1">
+              <input id="set-lunch-start" type="time" class="w-full border rounded-xl px-2 py-2 text-xs" />
+              <input id="set-lunch-end" type="time" class="w-full border rounded-xl px-2 py-2 text-xs" />
+            </div>
+          </div>
+        </div>
+        <div class="text-sm">
+          <label class="block text-xs text-slate-500 mb-1">אזורי איסוף (מופרדים בפסיק)</label>
+          <input id="set-areas" type="text" class="w-full border rounded-xl px-3 py-2" />
+        </div>
+        <button id="save-settings-btn" class="bg-slate-900 hover:bg-slate-800 text-white font-semibold px-5 py-2.5 rounded-xl text-sm">
+          שמור הגדרות
+        </button>
+      </div>
+    </section>
+  </div>
+
+  <!-- Manual Lesson Modal -->
+  <div id="manual-modal" class="fixed inset-0 bg-black/40 hidden items-center justify-center p-4 z-50">
+    <div class="bg-white rounded-2xl p-5 w-full max-w-sm space-y-3 shadow-xl">
+      <h3 class="font-bold text-base">שיבוץ ידני</h3>
+      <p id="manual-slot-label" class="text-xs text-slate-500"></p>
+      <select id="manual-student-select" class="w-full border rounded-xl px-3 py-2 text-sm bg-white"></select>
+      <label class="flex items-center gap-2 text-sm">
+        <input id="manual-double" type="checkbox" /> שיעור כפול
+      </label>
+      <div class="flex gap-2 pt-2">
+        <button id="manual-save" class="flex-1 bg-blue-600 text-white py-2 rounded-xl font-semibold text-sm">שבץ</button>
+        <button id="manual-cancel" class="flex-1 bg-slate-100 text-slate-700 py-2 rounded-xl text-sm">ביטול</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="toast" class="fixed top-16 left-1/2 -translate-x-1/2 text-white text-sm px-4 py-2.5 rounded-xl shadow-lg hidden z-50"></div>
+
+  <script>
+    const DAY_NAMES = ["יום א'", "יום ב'", "יום ג'", "יום ד'", "יום ה'", "יום ו'"];
+    const AREA_PALETTE = [
+      "bg-sky-50 border-sky-300 text-sky-950",
+      "bg-emerald-50 border-emerald-300 text-emerald-950",
+      "bg-amber-50 border-amber-300 text-amber-950",
+      "bg-purple-50 border-purple-300 text-purple-950",
+      "bg-pink-50 border-pink-300 text-pink-950",
+      "bg-orange-50 border-orange-300 text-orange-950",
+      "bg-teal-50 border-teal-300 text-teal-950",
+      "bg-indigo-50 border-indigo-300 text-indigo-950",
+    ];
+    function getAreaColor(area) {
+      if (!area) return AREA_PALETTE[0];
+      let sum = 0;
+      for (let i = 0; i < area.length; i++) sum += area.charCodeAt(i);
+      return AREA_PALETTE[sum % AREA_PALETTE.length];
+    }
+
+    let pin = localStorage.getItem("instructor_pin");
+    let weekData = null;
+    let manualTarget = null;
+    let draggedLesson = null;
+
+    function showToast(msg, isError = false) {
+      const el = document.getElementById("toast");
+      el.textContent = msg;
+      el.className = `fixed top-16 left-1/2 -translate-x-1/2 text-white text-sm px-4 py-2.5 rounded-xl shadow-lg z-50 ${isError ? "bg-red-600" : "bg-emerald-600"}`;
+      el.classList.remove("hidden");
+      setTimeout(() => el.classList.add("hidden"), 3000);
+    }
+
+    async function api(url, opts = {}) {
+      opts.headers = { ...(opts.headers || {}), "X-Instructor-Pin": pin };
+      const res = await fetch(url, opts);
+      if (res.status === 401) {
+        localStorage.removeItem("instructor_pin");
+        location.reload();
+        throw new Error("Unauthorized");
+      }
+      return res;
+    }
+
+    document.getElementById("inst-login-form").onsubmit = async (e) => {
+      e.preventDefault();
+      const candidate = document.getElementById("inst-pin").value;
+      const res = await fetch("/api/instructor/login", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ pin: candidate }),
+      });
+      if (!res.ok) {
+        document.getElementById("inst-login-err").textContent = "קוד שגוי";
+        document.getElementById("inst-login-err").classList.remove("hidden");
+        return;
+      }
+      pin = candidate;
+      localStorage.setItem("instructor_pin", pin);
+      initDashboard();
+    };
+
+    async function initDashboard() {
+      document.getElementById("login-screen").classList.add("hidden");
+      document.getElementById("dashboard").classList.remove("hidden");
+      await loadWeek();
+    }
+
+    async function loadWeek() {
+      const res = await api("/api/instructor/week/next");
+      weekData = await res.json();
+      document.getElementById("week-title").textContent = `שבוע החל מ-${weekData.week_start}`;
+      document.getElementById("sub-badge").textContent = `${weekData.submitted_count} / ${weekData.active_count} הגישו אילוצים`;
+
+      const lockBadge = document.getElementById("lock-badge");
+      lockBadge.textContent = weekData.is_locked ? "🔒 הגשה נעולה" : "🔓 פתוח להגשה";
+      lockBadge.className = `px-3 py-1 rounded-full text-xs font-bold ${weekData.is_locked ? "bg-amber-100 text-amber-900" : "bg-emerald-100 text-emerald-900"}`;
+
+      document.getElementById("lock-override-select").value =
+        weekData.lock_override === null ? "auto" : String(weekData.lock_override);
+
+      renderBlocks();
+      renderScheduleGrid();
+      renderMissing();
+      renderWeeklySummary();
+      renderStudentsTab();
+      renderSettingsTab();
+    }
+
+    function renderBlocks() {
+      const container = document.getElementById("blocks-list");
+      container.innerHTML = "";
+      if (!weekData.instructor_blocks.length) {
+        container.innerHTML = `<span class="text-xs text-slate-400">אין חסימות מיוחדות השבוע.</span>`;
+        return;
+      }
+      for (const b of weekData.instructor_blocks) {
+        const tag = document.createElement("div");
+        tag.className = `inline-flex items-center gap-2 px-3 py-1.5 rounded-xl text-xs border ${b.block_type === "test" ? "bg-orange-50 border-orange-200 text-orange-900" : "bg-red-50 border-red-200 text-red-900"}`;
+        tag.innerHTML = `<span><strong>${DAY_NAMES[b.day]}</strong> ${b.start_time}-${b.end_time} · ${b.title || (b.block_type === "test" ? "טסט" : "חסימה")}</span>
+          <button data-id="${b.id}" class="del-blk text-red-600 font-bold hover:text-red-800">✕</button>`;
+        container.appendChild(tag);
+      }
+      container.querySelectorAll(".del-blk").forEach(btn => {
+        btn.onclick = async () => {
+          await api(`/api/instructor/blocks/${btn.dataset.id}`, { method: "DELETE" });
+          loadWeek();
+        };
+      });
+    }
+
+    function toMin(t) {
+      const [h, m] = t.split(":").map(Number);
+      return h * 60 + m;
+    }
+
+    function nextSlotTime(t, dur) {
+      const nm = toMin(t) + dur;
+      return `${String(Math.floor(nm / 60)).padStart(2, "0")}:${String(nm % 60).padStart(2, "0")}`;
+    }
+
+    function isSlotFreeForMove(day, time, ignoreLessonId, lessonMap, doubleCont, dur) {
+      const hasSlot = weekData.slots.some(s => s.day === day && s.start_time === time);
+      if (!hasSlot) return false;
+      const occ = lessonMap[`${day}:${time}`];
+      if (occ && occ.id !== ignoreLessonId) return false;
+      const cont = doubleCont[`${day}:${time}`];
+      if (cont && cont.id !== ignoreLessonId) return false;
+      const tStartM = toMin(time);
+      const tEndM = tStartM + dur;
+      const blk = weekData.instructor_blocks.find(b =>
+        b.day === day && tStartM < toMin(b.end_time) && toMin(b.start_time) < tEndM
+      );
+      return !blk;
+    }
+
+    function highlightStudentConflicts(studentId, show) {
+      const blocked = new Set((weekData.constraints[studentId]?.blocked_slots) || []);
+      document.querySelectorAll("#schedule-tbody td[data-slot-key]").forEach(td => {
+        const key = td.dataset.slotKey;
+        if (show && blocked.has(key)) {
+          td.classList.add("bg-amber-50", "ring-1", "ring-inset", "ring-amber-300");
+        } else {
+          td.classList.remove("bg-amber-50", "ring-1", "ring-inset", "ring-amber-300");
+        }
+      });
+    }
+
+    function renderScheduleGrid() {
+      const legendEl = document.getElementById("area-legend");
+      const allAreas = [...new Set([
+        ...(weekData.settings.areas || []),
+        ...weekData.students.filter(s => s.status === "active").map(s => s.area),
+      ].filter(Boolean))];
+      legendEl.innerHTML = allAreas
+        .map(a => `<span class="px-2 py-0.5 rounded border ${getAreaColor(a)}">${a}</span>`)
+        .join("");
+
+      const tbody = document.getElementById("schedule-tbody");
+      tbody.innerHTML = "";
+      const stMap = Object.fromEntries(weekData.students.map(s => [s.id, s]));
+      const times = [...new Set(weekData.slots.map(s => s.start_time))].sort();
+      const dur = weekData.settings.lesson_duration_min;
+
+      const lessonMap = {};
+      const doubleCont = {};
+      for (const l of weekData.scheduled_lessons) {
+        lessonMap[`${l.day}:${l.start_time}`] = l;
+        if (l.is_double) {
+          doubleCont[`${l.day}:${nextSlotTime(l.start_time, dur)}`] = l;
+        }
+      }
+
+      for (const t of times) {
+        const tr = document.createElement("tr");
+        const tEndM = toMin(t) + dur;
+        const tEnd = `${String(Math.floor(tEndM / 60)).padStart(2, "0")}:${String(tEndM % 60).padStart(2, "0")}`;
+        tr.innerHTML = `<td class="border border-slate-200 p-2 bg-slate-50 font-semibold text-center">${t}<br><span class="text-[10px] text-slate-400">${tEnd}</span></td>`;
+
+        for (let d = 0; d < 6; d++) {
+          const td = document.createElement("td");
+          td.className = "border border-slate-200 p-1.5 align-top min-w-[115px] h-14 transition-colors";
+          const hasSlot = weekData.slots.some(s => s.day === d && s.start_time === t);
+          if (!hasSlot) {
+            td.className += " bg-slate-100";
+            tr.appendChild(td);
+            continue;
+          }
+
+          const slotKey = `${d}:${t}`;
+          const ls = lessonMap[slotKey];
+          if (ls) {
+            const st = stMap[ls.student_id] || { name: `#${ls.student_id}`, area: "" };
+            const colorCls = getAreaColor(st.area);
+            td.dataset.slotKey = slotKey;
+            td.innerHTML = `
+              <div draggable="true" data-lesson-id="${ls.id}"
+                class="lesson-card cursor-grab active:cursor-grabbing p-1.5 rounded-lg border ${colorCls} flex flex-col gap-0.5 select-none">
+                <div class="flex items-center justify-between gap-1">
+                  <span class="font-bold truncate">${st.name}</span>
+                  <div class="flex gap-1">
+                    <button title="נעל/שחרר" data-id="${ls.id}" data-locked="${ls.is_locked}" class="pin-ls text-[11px]">${ls.is_locked ? "📌" : "🔓"}</button>
+                    <button title="מחק" data-id="${ls.id}" class="del-ls text-red-600 font-bold">✕</button>
+                  </div>
+                </div>
+                <div class="text-[10px] opacity-80">${st.area}${ls.is_double ? " · כפול" : ""}</div>
+              </div>`;
+
+            const card = td.querySelector(".lesson-card");
+            card.ondragstart = (e) => {
+              draggedLesson = ls;
+              e.dataTransfer.effectAllowed = "move";
+              e.dataTransfer.setData("text/plain", String(ls.id));
+              setTimeout(() => {
+                card.classList.add("opacity-40");
+                highlightStudentConflicts(ls.student_id, true);
+              }, 0);
+            };
+            card.ondragend = () => {
+              card.classList.remove("opacity-40");
+              highlightStudentConflicts(ls.student_id, false);
+              draggedLesson = null;
+            };
+
+            // Allow dropping onto another lesson card to SWAP
+            td.ondragover = (e) => {
+              if (!draggedLesson || draggedLesson.id === ls.id) return;
+              e.preventDefault();
+              td.classList.add("ring-2", "ring-blue-500", "bg-blue-50");
+            };
+            td.ondragleave = () => {
+              td.classList.remove("ring-2", "ring-blue-500", "bg-blue-50");
+            };
+            td.ondrop = async (e) => {
+              e.preventDefault();
+              td.classList.remove("ring-2", "ring-blue-500", "bg-blue-50");
+              if (!draggedLesson || draggedLesson.id === ls.id) return;
+              if (draggedLesson.is_double || ls.is_double) {
+                showToast("לא ניתן להחליף ישירות שיעור כפול עם רגיל — גרור למשבצת פנויה", true);
+                return;
+              }
+              const src = draggedLesson;
+              await Promise.all([
+                api(`/api/instructor/lessons/${src.id}`, {
+                  method: "PATCH",
+                  headers: { "Content-Type": "application/json" },
+                  body: JSON.stringify({ day: ls.day, start_time: ls.start_time }),
+                }),
+                api(`/api/instructor/lessons/${ls.id}`, {
+                  method: "PATCH",
+                  headers: { "Content-Type": "application/json" },
+                  body: JSON.stringify({ day: src.day, start_time: src.start_time }),
+                }),
+              ]);
+              showToast("השיעורים הוחלפו בהצלחה!");
+              loadWeek();
+            };
+          } else if (doubleCont[slotKey]) {
+            const st = stMap[doubleCont[slotKey].student_id] || {};
+            td.innerHTML = `<div class="p-1.5 rounded-lg border border-dashed border-slate-300 bg-slate-50 text-[10px] text-slate-500 text-center">↑ המשך כפול (${st.name || ""})</div>`;
+          } else {
+            const blk = weekData.instructor_blocks.find(b =>
+              b.day === d && toMin(t) < toMin(b.end_time) && toMin(b.start_time) < tEndM
+            );
+            if (blk) {
+              td.innerHTML = `<div class="p-1.5 rounded-lg bg-red-50 border border-red-200 text-red-800 text-[10px] font-semibold text-center">${blk.block_type === "test" ? "טסט: " : ""}${blk.title || "חסום"}</div>`;
+            } else {
+              td.dataset.slotKey = slotKey;
+              td.className += " hover:bg-blue-50/60 cursor-pointer";
+              td.onclick = () => openManualModal(d, t);
+
+              // Allow dropping onto empty slot to MOVE
+              td.ondragover = (e) => {
+                if (!draggedLesson) return;
+                e.preventDefault();
+                td.classList.add("ring-2", "ring-blue-500", "bg-blue-100/70");
+              };
+              td.ondragleave = () => {
+                td.classList.remove("ring-2", "ring-blue-500", "bg-blue-100/70");
+              };
+              td.ondrop = async (e) => {
+                e.preventDefault();
+                td.classList.remove("ring-2", "ring-blue-500", "bg-blue-100/70");
+                if (!draggedLesson) return;
+                if (draggedLesson.is_double) {
+                  const nt = nextSlotTime(t, dur);
+                  if (!isSlotFreeForMove(d, nt, draggedLesson.id, lessonMap, doubleCont, dur)) {
+                    showToast("שיעור כפול דורש 2 משבצות רצופות פנויות", true);
+                    return;
+                  }
+                }
+                const studentBlocked = (weekData.constraints[draggedLesson.student_id]?.blocked_slots || []).includes(slotKey);
+                await api(`/api/instructor/lessons/${draggedLesson.id}`, {
+                  method: "PATCH",
+                  headers: { "Content-Type": "application/json" },
+                  body: JSON.stringify({ day: d, start_time: t }),
+                });
+                showToast(
+                  studentBlocked
+                    ? "השיעור הוזז (שים לב: התלמיד סימן שעה זו כלא זמינה)"
+                    : "השיעור הוזז בהצלחה!",
+                  studentBlocked
+                );
+                loadWeek();
+              };
+            }
+          }
+          tr.appendChild(td);
+        }
+        tbody.appendChild(tr);
+      }
+
+      tbody.querySelectorAll(".del-ls").forEach(btn => {
+        btn.onclick = async (e) => {
+          e.stopPropagation();
+          await api(`/api/instructor/lessons/${btn.dataset.id}`, { method: "DELETE" });
+          loadWeek();
+        };
+      });
+      tbody.querySelectorAll(".pin-ls").forEach(btn => {
+        btn.onclick = async (e) => {
+          e.stopPropagation();
+          const nextLocked = btn.dataset.locked === "1" ? false : true;
+          await api(`/api/instructor/lessons/${btn.dataset.id}`, {
+            method: "PATCH",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ is_locked: nextLocked }),
+          });
+          loadWeek();
+        };
+      });
+    }
+
+    function renderMissing() {
+      const el = document.getElementById("missing-list");
+      if (!weekData.missing_students.length) {
+        el.innerHTML = `<span class="text-emerald-700 font-semibold">כל התלמידים הפעילים הגישו אילוצים!</span>`;
+        return;
+      }
+      el.innerHTML = weekData.missing_students
+        .map(s => `<div class="flex justify-between items-center py-1 border-b border-slate-100"><span>${s.name} (${s.area})</span><span class="text-slate-400" dir="ltr">${s.phone}</span></div>`)
+        .join("");
+    }
+
+    function formatMinutes(totalMin) {
+      if (!totalMin) return "0 דק׳";
+      const h = Math.floor(totalMin / 60);
+      const m = totalMin % 60;
+      if (h && m) return `${h} שע׳ ו-${m} דק׳`;
+      if (h) return `${h} שעות`;
+      return `${m} דק׳`;
+    }
+
+    function renderWeeklySummary() {
+      const tbody = document.getElementById("summary-tbody");
+      const q = document.getElementById("summary-search").value.trim();
+      const lessonsBySt = {};
+      let totalLessonsAll = 0;
+      let totalMinutesAll = 0;
+
+      for (const l of weekData.scheduled_lessons) {
+        (lessonsBySt[l.student_id] ||= []).push(l);
+        totalLessonsAll += l.is_double ? 2 : 1;
+        totalMinutesAll += l.duration_min;
+      }
+
+      document.getElementById("summary-total-badge").textContent =
+        `סה״כ: ${totalLessonsAll} שיעורים (${formatMinutes(totalMinutesAll)})`;
+
+      const rows = weekData.students
+        .filter(s => s.status === "active" || lessonsBySt[s.id])
+        .filter(s => !q || s.name.includes(q) || s.area.includes(q));
+
+      tbody.innerHTML = "";
+      for (const s of rows) {
+        const req = weekData.constraints[s.id]?.requested_lessons ?? "-";
+        const stLessons = (lessonsBySt[s.id] || []).slice().sort((a, b) => a.day - b.day || a.start_time.localeCompare(b.start_time));
+        const gotUnits = stLessons.reduce((acc, l) => acc + (l.is_double ? 2 : 1), 0);
+        const gotMin = stLessons.reduce((acc, l) => acc + l.duration_min, 0);
+        const timesTxt = stLessons.length
+          ? stLessons.map(l => `${DAY_NAMES[l.day]} ${l.start_time}${l.is_double ? " (כפול)" : ""}`).join(" · ")
+          : "-";
+
+        let badgeCls = "bg-slate-100 text-slate-600";
+        if (typeof req === "number") {
+          if (gotUnits >= req && req > 0) badgeCls = "bg-emerald-100 text-emerald-800";
+          else if (gotUnits > 0 && gotUnits < req) badgeCls = "bg-amber-100 text-amber-800";
+          else if (req > 0 && gotUnits === 0) badgeCls = "bg-red-100 text-red-800";
+        }
+
+        const tr = document.createElement("tr");
+        tr.className = "hover:bg-slate-50";
+        tr.innerHTML = `
+          <td class="p-2 border-b font-semibold">${s.name}</td>
+          <td class="p-2 border-b">${s.area}</td>
+          <td class="p-2 border-b text-center">${req}</td>
+          <td class="p-2 border-b text-center"><span class="px-2 py-0.5 rounded-full font-bold ${badgeCls}">${gotUnits}</span></td>
+          <td class="p-2 border-b text-center">${formatMinutes(gotMin)}</td>
+          <td class="p-2 border-b text-slate-600">${timesTxt}</td>
+        `;
+        tbody.appendChild(tr);
+      }
+    }
+
+    document.getElementById("summary-search").oninput = () => {
+      if (weekData) renderWeeklySummary();
+    };
+
+    function openManualModal(day, time) {
+      manualTarget = { day, time };
+      document.getElementById("manual-slot-label").textContent = `${DAY_NAMES[day]} בשעה ${time}`;
+      const sel = document.getElementById("manual-student-select");
+      sel.innerHTML = weekData.students
+        .filter(s => s.status === "active")
+        .map(s => `<option value="${s.id}">${s.name} (${s.area})</option>`)
+        .join("");
+      document.getElementById("manual-double").checked = false;
+      document.getElementById("manual-modal").classList.remove("hidden");
+      document.getElementById("manual-modal").classList.add("flex");
+    }
+
+    document.getElementById("manual-cancel").onclick = () => {
+      document.getElementById("manual-modal").classList.add("hidden");
+      document.getElementById("manual-modal").classList.remove("flex");
+    };
+
+    document.getElementById("manual-save").onclick = async () => {
+      await api(`/api/instructor/week/${weekData.week_start}/lessons`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          day: manualTarget.day,
+          start_time: manualTarget.time,
+          student_id: Number(document.getElementById("manual-student-select").value),
+          is_double: document.getElementById("manual-double").checked,
+          is_locked: true,
+        }),
+      });
+      document.getElementById("manual-cancel").click();
+      loadWeek();
+    };
+
+    document.getElementById("auto-schedule-btn").onclick = async () => {
+      const res = await api(`/api/instructor/week/${weekData.week_start}/auto-schedule`, { method: "POST" });
+      const data = await res.json();
+      const statsEl = document.getElementById("schedule-stats");
+      statsEl.classList.remove("hidden");
+      statsEl.innerHTML = `
+        <div><strong>שיבוץ הושלם!</strong> שובצו ${data.stats.total_lessons} שיעורים ל-${data.stats.students_scheduled} תלמידים · רצף באותו אזור: ${data.stats.same_area_transitions}/${data.stats.total_transitions}</div>
+      `;
+      const unEl = document.getElementById("unscheduled-list");
+      if (!data.unscheduled.length) {
+        unEl.innerHTML = `<span class="text-emerald-700 font-semibold">כל התלמידים שהגישו שובצו במלואם!</span>`;
+      } else {
+        unEl.innerHTML = data.unscheduled
+          .map(u => `<div class="py-1 border-b border-slate-100"><strong>${u.name}</strong> (${u.area}) — שובץ ${u.scheduled}/${u.requested} (${u.reason})</div>`)
+          .join("");
+      }
+      showToast("הוצע לוז חכם בהצלחה!");
+      loadWeek();
+    };
+
+    document.getElementById("export-excel-btn").onclick = () => {
+      window.location.href = `/api/instructor/week/${weekData.week_start}/export?pin=${encodeURIComponent(pin)}`;
+    };
+
+    document.getElementById("demo-seed-btn").onclick = async () => {
+      const res = await api("/api/instructor/demo-seed", { method: "POST" });
+      const data = await res.json();
+      showToast(`נטענו ${data.students_count} תלמידי הדגמה ואילוצים!`);
+      loadWeek();
+    };
+
+    document.getElementById("lock-override-select").onchange = async (e) => {
+      const val = e.target.value === "auto" ? null : Number(e.target.value);
+      await api(`/api/instructor/week/${weekData.week_start}/lock`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ lock_override: val }),
+      });
+      loadWeek();
+    };
+
+    document.getElementById("add-block-form").onsubmit = async (e) => {
+      e.preventDefault();
+      await api(`/api/instructor/week/${weekData.week_start}/blocks`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          day: Number(document.getElementById("blk-day").value),
+          start_time: document.getElementById("blk-start").value,
+          end_time: document.getElementById("blk-end").value,
+          block_type: document.getElementById("blk-type").value,
+          title: document.getElementById("blk-title").value,
+        }),
+      });
+      document.getElementById("blk-title").value = "";
+      loadWeek();
+    };
+
+    function renderStudentsTab() {
+      const areaSel = document.getElementById("st-area");
+      areaSel.innerHTML = weekData.settings.areas.map(a => `<option value="${a}">${a}</option>`).join("");
+      const q = document.getElementById("student-search").value.trim();
+      const tbody = document.getElementById("students-tbody");
+      tbody.innerHTML = "";
+      for (const s of weekData.students) {
+        if (q && !s.name.includes(q) && !s.area.includes(q) && !s.phone.includes(q) && !(s.address || "").includes(q)) continue;
+        const fullAddr = s.address ? `${s.address}, ${s.area}` : s.area;
+        const geoTag = (s.lat !== null && s.lng !== null) ? `<span title="ממופה לפי קואורדינטות" class="text-emerald-600 mr-1">📍</span>` : "";
+        const tr = document.createElement("tr");
+        tr.className = s.status === "archived" ? "opacity-50 bg-slate-50" : "";
+        tr.innerHTML = `
+          <td class="p-2.5 border-b font-semibold">${s.name}</td>
+          <td class="p-2.5 border-b" dir="ltr">${s.phone}</td>
+          <td class="p-2.5 border-b" dir="ltr">${s.pin}</td>
+          <td class="p-2.5 border-b">${s.area}</td>
+          <td class="p-2.5 border-b text-slate-700">${fullAddr}${geoTag}</td>
+          <td class="p-2.5 border-b">
+            <select data-id="${s.id}" class="st-status-sel border rounded-lg px-2 py-1 bg-white">
+              <option value="active" ${s.status === "active" ? "selected" : ""}>פעיל</option>
+              <option value="paused" ${s.status === "paused" ? "selected" : ""}>מוקפא</option>
+              <option value="archived" ${s.status === "archived" ? "selected" : ""}>עזב / סיים</option>
+            </select>
+          </td>
+          <td class="p-2.5 border-b text-center">
+            <button data-id="${s.id}" data-name="${s.name}" class="del-st-btn text-red-600 hover:text-red-800 px-2 py-1 rounded-lg hover:bg-red-50" title="מחק תלמיד">🗑️</button>
+          </td>`;
+        tbody.appendChild(tr);
+      }
+      tbody.querySelectorAll(".st-status-sel").forEach(sel => {
+        sel.onchange = async () => {
+          await api(`/api/instructor/students/${sel.dataset.id}`, {
+            method: "PATCH",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ status: sel.value }),
+          });
+          showToast("סטטוס התלמיד עודכן");
+          loadWeek();
+        };
+      });
+      tbody.querySelectorAll(".del-st-btn").forEach(btn => {
+        btn.onclick = async () => {
+          if (!confirm(`למחוק את ${btn.dataset.name} לצמיתות מהמערכת?`)) return;
+          const res = await api(`/api/instructor/students/${btn.dataset.id}`, { method: "DELETE" });
+          if (res.ok) {
+            showToast("התלמיד נמחק מהמערכת");
+            loadWeek();
+          } else {
+            showToast("שגיאה במחיקת התלמיד", true);
+          }
+        };
+      });
+    }
+
+    document.getElementById("student-search").oninput = renderStudentsTab;
+
+    document.getElementById("add-student-form").onsubmit = async (e) => {
+      e.preventDefault();
+      const res = await api("/api/instructor/students", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          name: document.getElementById("st-name").value,
+          phone: document.getElementById("st-phone").value,
+          pin: document.getElementById("st-pin").value,
+          area: document.getElementById("st-area").value,
+          address: document.getElementById("st-address").value,
+        }),
+      });
+      if (!res.ok) {
+        const err = await res.json();
+        showToast(err.detail || "שגיאה", true);
+        return;
+      }
+      const created = await res.json();
+      document.getElementById("st-name").value = "";
+      document.getElementById("st-phone").value = "";
+      document.getElementById("st-pin").value = "";
+      document.getElementById("st-address").value = "";
+      showToast(`תלמיד נוסף! הקוד שהוגרל: ${created.pin}`);
+      loadWeek();
+    };
+
+    function renderSettingsTab() {
+      const s = weekData.settings;
+      document.getElementById("set-duration").value = s.lesson_duration_min;
+      document.getElementById("set-lock-time").value = s.lock_time;
+      document.getElementById("set-lunch-mode").value = s.lunch_mode;
+      document.getElementById("set-lunch-start").value = s.lunch_mode === "fixed" ? s.lunch_fixed_start : s.lunch_window_start;
+      document.getElementById("set-lunch-end").value = s.lunch_window_end;
+      document.getElementById("set-areas").value = s.areas.join(", ");
+    }
+
+    document.getElementById("save-settings-btn").onclick = async () => {
+      const mode = document.getElementById("set-lunch-mode").value;
+      const areas = document.getElementById("set-areas").value.split(",").map(x => x.trim()).filter(Boolean);
+      const payload = {
+        lesson_duration_min: Number(document.getElementById("set-duration").value),
+        lock_time: document.getElementById("set-lock-time").value,
+        lunch_mode: mode,
+        areas,
+      };
+      if (mode === "fixed") payload.lunch_fixed_start = document.getElementById("set-lunch-start").value;
+      else {
+        payload.lunch_window_start = document.getElementById("set-lunch-start").value;
+        payload.lunch_window_end = document.getElementById("set-lunch-end").value;
+      }
+      await api("/api/instructor/settings", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+      showToast("ההגדרות נשמרו!");
+      loadWeek();
+    };
+
+    document.querySelectorAll(".tab-btn").forEach(btn => {
+      btn.onclick = () => {
+        document.querySelectorAll(".tab-btn").forEach(b => b.className = "tab-btn px-3 py-1.5 rounded-lg text-slate-300 hover:text-white");
+        btn.className = "tab-btn px-3 py-1.5 rounded-lg bg-blue-600 text-white";
+        ["schedule", "students", "settings"].forEach(t => {
+          document.getElementById(`tab-${t}`).classList.toggle("hidden", t !== btn.dataset.tab);
+        });
+      };
+    });
+
+    document.getElementById("inst-logout").onclick = () => {
+      localStorage.removeItem("instructor_pin");
+      location.reload();
+    };
+
+    if (pin) initDashboard();
+  </script>
+</body>
+</html>
