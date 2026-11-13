@@ -259,6 +259,17 @@ def run_smart_schedule(
                 occ.append((slots[s_idx].start_min, slots[s_idx].end_min))
             if not has_valid_lunch_gap(day, occ, lunch_win_start, lunch_win_end, 60):
                 return False
+
+        # Never allow a student to have more than 2 lesson units on the same day
+        student_day_slots = set(slot_indices)
+        for i, a in enumerate(assignments):
+            if i == exclude_a_idx or a is None or a["student_id"] != sid:
+                continue
+            for s_idx in a["slot_indices"]:
+                if slots[s_idx].day == day:
+                    student_day_slots.add(s_idx)
+        if len(student_day_slots) > 2:
+            return False
         return True
 
     def score_current() -> float:

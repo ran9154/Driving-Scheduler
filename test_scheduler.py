@@ -94,3 +94,38 @@ def test_distance_clustering_prefers_closer_students():
     ness_ziona = {"area": "נס ציונה", "lat": 31.9293, "lng": 34.7987}
 
     assert proximity_score(ramla_a, ramla_b) > proximity_score(ramla_a, ness_ziona)
+
+
+def test_never_schedules_more_than_two_lessons_per_day():
+    settings = {
+        "lesson_duration_min": 40,
+        "lunch_mode": "flexible",
+        "lunch_window_start": "12:30",
+        "lunch_window_end": "15:00",
+        "lunch_fixed_start": "13:00",
+        "work_hours": {
+            "0": {"enabled": True, "start": "08:00", "end": "12:00"},
+            "1": {"enabled": True, "start": "08:00", "end": "12:00"},
+            "2": {"enabled": False, "start": "08:00", "end": "12:00"},
+            "3": {"enabled": False, "start": "08:00", "end": "12:00"},
+            "4": {"enabled": False, "start": "08:00", "end": "12:00"},
+            "5": {"enabled": False, "start": "08:00", "end": "12:00"},
+        },
+    }
+    students = [{"id": 1, "name": "עומר", "phone": "0509", "area": "רמלה", "status": "active"}]
+    constraints = {1: {"requested_lessons": 3, "prefer_double": True, "blocked_slots": []}}
+
+    res = run_smart_schedule(
+        settings=settings,
+        students=students,
+        constraints_by_student=constraints,
+        instructor_blocks=[],
+        locked_lessons=[],
+    )
+
+    per_day_units: dict[int, int] = {}
+    for l in res["lessons"]:
+        per_day_units[l["day"]] = per_day_units.get(l["day"], 0) + (2 if l["is_double"] else 1)
+
+    assert sum(per_day_units.values()) == 3
+    assert all(cnt <= 2 for cnt in per_day_units.values())
